@@ -1,0 +1,33 @@
+# Python 3.10 or newer. The gates read sys.stdlib_module_names, which arrived in 3.10, and refuse to run without
+# it rather than report every standard library import as an undeclared dependency.
+#
+# A line carries a range only where this repository depends on something a release could move, and each of those
+# says why above itself. Everything else is deliberately left unpinned. After installing, run the contact
+# example, which fails loudly if the combination is inconsistent.
+torch
+numpy
+gymnasium
+# Tested at 0.19.1. src/lora_utils.py reads and writes _disable_adapters on peft's own layer objects, which is
+# private and exposed publicly only for reading, so a release is free to rename it and the reference anchor would
+# then be silently switched off rather than fail.
+peft>=0.19,<0.20
+transformers
+# Tested at 0.4.4. src/env_libero.py reaches into lerobot.envs.libero for _make_env_fns, whose leading underscore
+# marks it private and carries no compatibility promise, so a later release is free to move or rename it and the
+# trainer would then fail on import, before it parses an argument. The version that worked is recorded here
+# because requirements.txt is where an installer looks; NOTICE records the same number for a different reason.
+#
+# The smolvla extra is not optional here. Constructing the policy builds its processor, and for this backbone
+# that is the SmolVLM processor, which raises on import of a package the plain install does not bring:
+# num2words, which lerobot declares only under this extra. Without it the first run dies at model construction,
+# after the weights have been downloaded, with a message naming transformers and neither this repository nor
+# what to install. The extra is num2words, accelerate, safetensors and the transformers dependency, which is
+# upstream's own statement of what this policy family needs.
+lerobot[smolvla]>=0.4.4,<0.5
+# The simulator suite, under the distribution name the tested LeRobot release actually requires for its LIBERO
+# integration. The bare name `libero` on the index is a superseded project from the same fork; both install into
+# the same import directory, so naming the wrong one gives a first run that fails on an import the policy library
+# makes rather than one this repository makes.
+hf-libero>=0.1.3,<0.2.0
+huggingface_hub
+matplotlib

@@ -1,0 +1,198 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below, and cite the upstream work it builds on."
+title: "smolvla_flow_rl: online reinforcement learning fine tuning for flow matching vision language action policies"
+abstract: >-
+  An engineering substrate for online reinforcement learning fine tuning of a flow matching vision language
+  action policy on a single consumer GPU. Provides a stochastic sampler that yields a tractable action
+  likelihood without modifying the pretrained action head, a policy gradient update that grades the executed
+  action, a process isolated simulator harness with a sparse terminal reward, a deterministic evaluation entry
+  point with a completeness gate, and a written verification protocol.
+type: software
+authors:
+  - family-names: "Yardimci"
+    given-names: "Mehmet Turan"
+license: Apache-2.0
+repository-code: "https://github.com/mturan33/smolvla_flow_rl"
+keywords:
+  - robotics
+  - reinforcement learning
+  - vision language action
+  - flow matching
+  - reproducibility
+
+references:
+  - type: article
+    title: "RLinf: Flexible and Efficient Large-scale Reinforcement Learning via Macro-to-Micro Flow Transformation"
+    year: 2025
+    authors:
+      - family-names: "Yu"
+        given-names: "Chao"
+      - family-names: "Wang"
+        given-names: "Yuanqing"
+      - family-names: "Guo"
+        given-names: "Zhen"
+      - family-names: "Lin"
+        given-names: "Hao"
+      - family-names: "Xu"
+        given-names: "Si"
+      - family-names: "Zang"
+        given-names: "Hongzhi"
+      - family-names: "Zhang"
+        given-names: "Quanlu"
+      - family-names: "Wu"
+        given-names: "Yongji"
+      - family-names: "Zhu"
+        given-names: "Chunyang"
+      - family-names: "Hu"
+        given-names: "Junhao"
+    identifiers:
+      - type: other
+        value: "arXiv:2509.15965"
+    notes: >-
+      Four files in this repository are derivative works of RLinf, which is licensed under the Apache License,
+      Version 2.0: the stochastic sampler, the critic head, the policy gradient update and the action model
+      wrapper. The author list above is the one given in the project's own citation entry, truncated there and
+      here after the tenth author.
+
+  - type: article
+    title: "pi_RL: Online RL Fine-tuning for Flow-based Vision-Language-Action Models"
+    year: 2025
+    authors:
+      - family-names: "Chen"
+        given-names: "Kang"
+      - family-names: "Liu"
+        given-names: "Zhihao"
+      - family-names: "Zhang"
+        given-names: "Tonghe"
+      - family-names: "Guo"
+        given-names: "Zhen"
+      - family-names: "Xu"
+        given-names: "Si"
+      - family-names: "Lin"
+        given-names: "Hao"
+      - family-names: "Zang"
+        given-names: "Hongzhi"
+      - family-names: "Zhang"
+        given-names: "Quanlu"
+      - family-names: "Yu"
+        given-names: "Zhaofei"
+      - family-names: "Fan"
+        given-names: "Guoliang"
+    identifiers:
+      - type: other
+        value: "arXiv:2510.25889"
+    notes: >-
+      The training formulation this substrate implements, in particular treating one step of the flow
+      integration as stochastic so that a policy gradient has a likelihood to act on. The author list above is
+      the first ten of version 1, truncated as the source entry truncates it. A later version of that paper adds
+      an author inside those ten, so the list is a prefix of version 1 and not of the current one.
+
+  - type: software
+    title: "LeRobot: State-of-the-art Machine Learning for Real-World Robotics in Pytorch"
+    year: 2024
+    authors:
+      - family-names: "Cadene"
+        given-names: "Remi"
+      - family-names: "Alibert"
+        given-names: "Simon"
+      - family-names: "Soare"
+        given-names: "Alexander"
+      - family-names: "Gallouedec"
+        given-names: "Quentin"
+      - family-names: "Zouitine"
+        given-names: "Adil"
+      - family-names: "Palma"
+        given-names: "Steven"
+      - family-names: "Kooijmans"
+        given-names: "Pepijn"
+      - family-names: "Aractingi"
+        given-names: "Michel"
+      - family-names: "Shukor"
+        given-names: "Mustafa"
+      - family-names: "Aubakirova"
+        given-names: "Dana"
+      - family-names: "Russi"
+        given-names: "Martino"
+      - family-names: "Capuano"
+        given-names: "Francesco"
+      - family-names: "Pascal"
+        given-names: "Caroline"
+      - family-names: "Choghari"
+        given-names: "Jade"
+      - family-names: "Moss"
+        given-names: "Jess"
+      - family-names: "Wolf"
+        given-names: "Thomas"
+    repository-code: "https://github.com/huggingface/lerobot"
+    notes: >-
+      Both a dependency and an upstream. Two files follow LeRobot's own policy implementation: the action model
+      wrapper, for its prefix cache construction, and the stochastic sampler, for the integration grid and the
+      deterministic step. The pretrained policy, the observation preprocessing and the environment factory are
+      imported from it.
+
+  - type: article
+    title: "SmolVLA: A Vision-Language-Action Model for Affordable and Efficient Robotics"
+    year: 2025
+    authors:
+      - family-names: "Shukor"
+        given-names: "Mustafa"
+      - family-names: "Aubakirova"
+        given-names: "Dana"
+      - family-names: "Capuano"
+        given-names: "Francesco"
+      - family-names: "Kooijmans"
+        given-names: "Pepijn"
+      - family-names: "Palma"
+        given-names: "Steven"
+      - family-names: "Zouitine"
+        given-names: "Adil"
+      - family-names: "Aractingi"
+        given-names: "Michel"
+      - family-names: "Pascal"
+        given-names: "Caroline"
+      - family-names: "Russi"
+        given-names: "Martino"
+      - family-names: "Marafioti"
+        given-names: "Andres"
+      - family-names: "Alibert"
+        given-names: "Simon"
+      - family-names: "Cord"
+        given-names: "Matthieu"
+      - family-names: "Wolf"
+        given-names: "Thomas"
+      - family-names: "Cadene"
+        given-names: "Remi"
+    identifiers:
+      - type: other
+        value: "arXiv:2506.01844"
+    url: "https://arxiv.org/abs/2506.01844"
+    notes: >-
+      The policy family this substrate drives. Nothing here reimplements it; the pretrained head is loaded and
+      called through a callback, which is the constraint the whole design follows from.
+
+  - type: article
+    title: "LIBERO: Benchmarking Knowledge Transfer for Lifelong Robot Learning"
+    year: 2023
+    authors:
+      - family-names: "Liu"
+        given-names: "Bo"
+      - family-names: "Zhu"
+        given-names: "Yifeng"
+      - family-names: "Gao"
+        given-names: "Chongkai"
+      - family-names: "Feng"
+        given-names: "Yihao"
+      - family-names: "Liu"
+        given-names: "Qiang"
+      - family-names: "Zhu"
+        given-names: "Yuke"
+      - family-names: "Stone"
+        given-names: "Peter"
+    identifiers:
+      - type: other
+        value: "arXiv:2306.03310"
+    url: "https://arxiv.org/abs/2306.03310"
+    notes: >-
+      The benchmark this harness drives, and the source of the scenes and objects in the footage at the top of the
+      README. Included because the project asks to be cited in its own README, which is a request rather than a
+      licence obligation, and the licence obligation is met separately in NOTICE.

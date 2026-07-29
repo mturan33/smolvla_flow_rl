@@ -1,0 +1,207 @@
+smolvla_flow_rl
+Copyright 2026 Mehmet Turan Yardimci
+
+This product includes software developed as part of, or adapted from, the projects listed below. Each is used
+under its own licence, and each licence is reproduced or referenced as required.
+
+--------------------------------------------------------------------------------
+RLinf
+Copyright 2025 The RLinf Authors.
+Licensed under the Apache License, Version 2.0.
+https://github.com/RLinf/RLinf
+Revision this work derives from: commit 832db3f5c7aa6c61d72f20aaf43b7ce0f4ad2b03, dated 2026-05-27.
+
+Four files in this repository are derivative works of RLinf: the stochastic sampler for flow matching policies
+(src/flow_sde.py), the critic head (src/value_head.py), the policy gradient update (src/ppo_step.py), and the
+wrapper that gives the pretrained policy the pieces a policy gradient needs (src/action_model.py). Two of those
+four, src/flow_sde.py and src/action_model.py, have LeRobot as a second upstream and are described again in the
+LeRobot entry below. They derive principally from rlinf/models/embodiment/openpi/openpi_action_model.py and
+rlinf/models/embodiment/modules/value_head.py. Every file containing adapted material carries a notice of
+modification in its header, as required by Section 4(b) of the Apache License, and retains the copyright line
+above, as required by Section 4(c). The full licence text is in the LICENSE file at the root of this repository.
+
+The revision is pinned because an unpinned reference to a file path is not a reference at all: upstream headers
+change, and a retained copyright line that was correct when it was written silently stops matching. Both files
+named above carry "Copyright 2025 The RLinf Authors." at the pinned commit, which is the line retained here. A
+later upstream revision may carry a different year; readers comparing against upstream should compare against
+the pinned commit.
+
+Section 4(d) does not apply: the RLinf distribution contains no NOTICE file at that revision, and no AUTHORS or
+COPYRIGHT file either. Established by listing the distribution root rather than assumed.
+
+Section 4(c) was checked over the whole of both upstream files rather than over their headers. Each carries
+exactly one copyright line, the one reproduced above, and no further attribution notice anywhere in its 1392 and
+67 lines respectively. This was worth checking rather than assuming because one of them sits in a directory named
+after a separate Apache licensed project: it imports that project as a dependency, which creates no obligation
+here, and this repository imports nothing from it.
+
+--------------------------------------------------------------------------------
+LeRobot
+Copyright 2025 HuggingFace Inc. team. All rights reserved.
+Licensed under the Apache License, Version 2.0.
+https://github.com/huggingface/lerobot
+Revision this work derives from: version 0.4.4.
+
+Both a dependency and an upstream.
+
+As a dependency, this repository imports LeRobot for the policy implementation, the observation preprocessing
+utilities and the simulator environment factory.
+
+As an upstream, two files are derivative works, and both draw on lerobot/policies/smolvla/modeling_smolvla.py:
+
+- src/action_model.py, whose prefix cache construction follows that file's own closely.
+- src/flow_sde.py, whose integration grid and deterministic Euler step are that file's constant step expression.
+
+Both carry their own notice of modification under Section 4(b) and retain the copyright line above under Section
+4(c), which is the line that file carries at version 0.4.4. No verbatim LeRobot source file is redistributed here.
+
+Section 4(d) does not apply: the LeRobot distribution contains no NOTICE file at that version. Checked, not
+assumed, the same way it was checked for RLinf.
+
+Section 4(c) was also considered for the attribution notices embedded inside LeRobot's own LICENSE file, which is
+not the plain Apache text: it carries four MIT notices, for work by the Columbia Artificial Intelligence and
+Robotics Lab, by Yunhai Feng, by Nicklas Hansen and Yanjie Ze, and by Tony Z. Zhao, and a second Apache licence
+for work by Facebook. Section 4(c) requires retaining attribution notices from the Source form except those that
+do not pertain to any part of the Derivative Works. The test is applied to the Derivative Works, not to the
+upstream file, and the distinction matters here: one of the five does pertain to the upstream file. The SmolVLA
+policy implementation carries Aloha derived gripper conversions and says so in its own comments, which is the work
+the Tony Z. Zhao notice covers. It pertains to no part of what is derived here. Neither src/action_model.py nor
+src/flow_sde.py contains any of that material, established by searching both for it rather than by assuming it.
+The other four pertain to neither. So none is reproduced, and the reasoning is recorded rather than left implicit,
+because a reader cannot otherwise tell a determination from an omission.
+
+Section 4(c) was also checked over the whole of modeling_smolvla.py rather than over its header, the same way it
+was checked for RLinf, and there were two things in that file to find. The helper make_att_2d_masks opens with
+"Copied from big_vision", which is Google Research work under its own Apache licence; it is not reproduced here
+because src/action_model.py imports that function from LeRobot rather than carrying a copy of it, so its body is
+not part of the Derivative Works. And the Aloha derived gripper conversions attribute their constants to the
+Interbotix code in their own comments; that block is the same material the Tony Z. Zhao notice covers, and it is
+absent from both derivative files, which was checked by searching them for it. Both are recorded because the
+alternative is a reader finding a notice themselves and having no way to tell whether it was considered.
+
+LeRobot's LICENSE file itself opens with a project level line, "Copyright 2024 The Hugging Face team. All rights
+reserved.", which differs in year and in entity form from the per file line retained above. That line is in the
+licence file and not in the source file: the policy implementation carries only the 2025 per file form. The per
+file line is the one reproduced, because Section 4(c) speaks of the notices carried by the Source form of the
+work that was derived from, and that is `modeling_smolvla.py`, whose own header states the 2025 form. It was
+read byte for byte from the installed distribution. The project level line is recorded here so that a reader
+comparing the two does not have to guess which was chosen or why.
+
+--------------------------------------------------------------------------------
+LIBERO
+Copyright (c) 2023 Lifelong Robot Learning
+Licensed under the MIT License.
+Original project: https://github.com/Lifelong-Robot-Learning/LIBERO
+Distribution declared in requirements.txt: hf-libero, the fork at https://github.com/huggingface/LIBERO, pinned to
+>=0.1.3,<0.2.0 because that is the range the tested LeRobot release requires for its LIBERO integration.
+Distribution this repository was actually exercised against: the original project at version 0.1.0, installed as
+an editable checkout of https://github.com/Lifelong-Robot-Learning/LIBERO.git.
+
+Those two are separated because they are different claims, and an earlier version of this file ran them together
+and asserted the fork had been tested. Both install under the import name `libero`. The MIT text and holder
+reproduced here were read from the original project's checkout, which is the one exercised; the fork is a fork of
+that project and its licence page states the same, but no installed copy of the fork was read on this machine, so
+that half is stated as expectation rather than as something established the way the rest of this file is. What
+would have turned on the difference is a reader trusting the word "tested" about a distribution never installed
+here.
+
+Used as a dependency for the task suites and simulator environments. The MIT licence text reproduced in
+THIRD_PARTY_LICENSES/LIBERO-MIT.txt carries the copyright line above, which is the holder both the original and
+the fork name, and it was read from the checkout that was actually exercised. The project declares two sets of
+terms, MIT for the codebase and CC BY 4.0 for its demonstration datasets. That split appears in its README and in
+its packaging description rather than in its LICENSE file, which carries the MIT text alone. Only the codebase
+half is engaged here, since no LIBERO dataset is used or redistributed, but the split is recorded rather than
+quietly resolved in this repository's favour. The fork is named as well as the original so that a reader can get
+from the dependency this repository declares to the licence it attributes without having to discover the
+relationship independently. No LIBERO source file is redistributed here.
+
+--------------------------------------------------------------------------------
+Simulator components visible in assets/demo.gif
+
+The one binary this repository ships is footage of the author's own runs, so it contains rendered images of robot
+models, scene assets and textures that come from the simulator stack rather than from here. Named for that reason:
+
+- robosuite, https://github.com/ARISE-Initiative/robosuite, version 1.4.0 as installed.
+  Copyright (c) 2022 Stanford Vision and Learning Lab and UT Robot Perception and Learning Lab.
+  Licensed under the MIT License, reproduced in THIRD_PARTY_LICENSES/robosuite-MIT.txt.
+  The text was taken out of the installed distribution rather than from the repository page, with its line
+  endings normalised to LF as every text file here is and nothing else altered. That source is worth stating
+  because the packaging metadata of the same distribution records the licence field
+  itself as UNKNOWN, which is a field its packaging never filled in rather than a statement about terms: it also
+  records LICENSE and AUTHORS as licence files, and both are present. Reading the field and stopping would have
+  produced the wrong answer, and this file gave that wrong answer until the distribution was opened.
+  The file reproduced here carries one further notice of its own, that robosuite contains a partial implementation
+  of DeepMind MuJoCo under the Apache License, Version 2.0. It is retained by shipping the file whole.
+- MuJoCo, version 3.7.0 as installed, which is the renderer that produced the frames.
+  Licensed under the Apache License, Version 2.0, declared as License-Expression: Apache-2.0 by the installed
+  distribution. No separate copy is shipped because the licence text that distribution carries is byte identical
+  to the LICENSE file at the root of this repository, which was established by comparing their hashes rather than
+  by assuming that two Apache copies agree. That distribution also ships its own third party inventory,
+  LICENSES_THIRD_PARTY.md, for anyone tracing the contents of a rendered scene further upstream.
+- DejaVu Sans Bold, the typeface the overlay captions are set in. The frames carry rendered glyphs, not the font
+  file, and nothing here redistributes the font itself. Named because the section is an inventory of what is in
+  the image and text is in the image. Established rather than guessed: the figure was drawn with matplotlib at
+  its default sans serif family and bold weight, which resolves to the DejaVuSans-Bold.ttf that matplotlib ships.
+  Its terms are in that distribution's LICENSE_DEJAVU, the Bitstream Vera Fonts licence, Copyright (c) 2003
+  Bitstream, Inc., with the DejaVu modifications placed in the public domain and imported Arev glyphs
+  Copyright (c) Tavmjong Bah.
+- matplotlib, version 3.10.9 as installed, which drew the overlay half of the frames as MuJoCo rendered the
+  scene half. Licensed under its own terms, titled "License agreement for matplotlib versions 1.3.0 and later",
+  which the installed distribution declares as its licence and ships in full. Named here for the same reason
+  MuJoCo is: this section inventories what put pixels into the shipped image, and a tool named without terms is
+  the omission this file elsewhere refuses to make.
+- LIBERO, whose entry above carries its terms and whose MIT text is in THIRD_PARTY_LICENSES/LIBERO-MIT.txt. It
+  supplies most of what is actually visible: the task scenes and their backgrounds, the manipulated objects and
+  the surface textures. robosuite supplies the robot. Listing the renderer and the robot while leaving out the
+  source of everything they render would have been the wrong division, and it stood in this file until the frames
+  were opened and the objects in them traced back to the asset tree they come from. That tree names three
+  families of externally sourced geometry in its own directory layout, turbosquid_objects, stable_hope_objects
+  and stable_scanned_objects, and objects from all three appear in the shipped frames. LIBERO declares terms for
+  its codebase and its datasets and says nothing separately about those families, so the entry above is the whole
+  of what its own declaration covers, and a reader who needs to go further upstream than that should start there
+  rather than here.
+
+What is still open is recorded as open, which is the honest state: no view is taken here on whether a rendering of
+a scene is a derivative work of the assets in it. The licences above are named because they can be, not because
+that question has been answered. Nothing from any of the three is redistributed as source.
+
+--------------------------------------------------------------------------------
+Policy weights
+Repository: HuggingFaceVLA/smolvla_libero on the Hugging Face Hub
+https://huggingface.co/HuggingFaceVLA/smolvla_libero
+Revision read: 6721902bc4d61e50a3bfdb11dfb4cb626f05d102, read on 2026-07-27.
+
+Licence: Apache License, Version 2.0, as stated on the model card at that revision.
+
+The revision is recorded for the same reason the code upstreams are pinned above: a licence quoted from a target
+that can move is not a quotation. This is also the only kind of entry in this file where this repository asserts
+somebody else's grant rather than reproducing a licence text it ships, so it is the one that most needs a date.
+
+These weights are a fine tune of lerobot/smolvla_base, which states no licence on its own model card. The grant
+above is the one the fine tuned repository states; a reader who needs a clean chain of title further upstream
+should know that the base states none. Recorded because this is the material fact about these weights and the
+rest of this entry would otherwise read as though the two were unrelated checkpoints.
+
+Not distributed here. The helper in scripts/ downloads them from the Hub at the user's own request. This is the
+default because it is the policy this harness can actually drive: the generic base checkpoint declares different
+camera keys and different state and action widths, so it cannot be used here at all.
+
+--------------------------------------------------------------------------------
+Backbone weights
+Repository: HuggingFaceTB/SmolVLM2-500M-Video-Instruct on the Hugging Face Hub
+https://huggingface.co/HuggingFaceTB/SmolVLM2-500M-Video-Instruct
+Revision read: 7b375e1b73b11138ff12fe22c8f2822d8fe03467, read on 2026-07-27.
+
+Licence: Apache License, Version 2.0, as stated on the model card at that revision.
+
+The default policy's configuration asks for HuggingFaceTB/SmolVLM2-500M-Instruct, which the Hub redirects to the
+repository named above; both names return that same revision, the same files and the same licence. The generic
+SmolVLA base names the canonical form directly. The revision and the licence here were read on the canonical
+repository, since a name that resolves by redirect is the moving target this file elsewhere says it pins against.
+
+Not distributed here. The helper in scripts/ reads the backbone repository out of the downloaded policy's own
+configuration and fetches that, rather than carrying a name of its own. That is a precaution rather than a
+demonstrated need: the two names seen so far resolve to one repository, but a checkpoint is free to ask for a
+different backbone, and a name written into a script is right for the policy it was written against and silently
+wrong for the next one.
+A policy fetched with a different --repo therefore brings its own backbone, whose terms this file does not state.
