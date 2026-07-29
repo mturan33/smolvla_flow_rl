@@ -10,9 +10,9 @@ consumer GPU.
 
 A flow matching policy produces an action chunk by integrating a learned velocity field from noise. Integrating
 it deterministically gives no action likelihood, so there is nothing for a policy gradient to act on. This
-repository takes the standard route around that, treating one step of the integration as stochastic so the
-sampled chunk has a tractable log probability, and builds the surrounding machinery needed to make such a run
-trustworthy rather than merely runnable.
+repository takes the standard route around that, following the approach of pi_RL (see `CITATION.cff`): one step
+of the integration is treated as stochastic, so the sampled chunk has a tractable log probability. Around that it
+builds the machinery such a run needs in order to be trustworthy rather than merely runnable.
 
 No results are reported here. Every number in this repository describes the machinery, what it trains, what it
 weighs and how long it takes, and none describes how well it works. The clip above is two episodes of footage
