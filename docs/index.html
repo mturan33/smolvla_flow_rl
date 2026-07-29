@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>smolvla_flow_rl: online RL fine tuning of flow matching VLA policies</title>
+<meta name="description" content="An open substrate for online reinforcement learning fine tuning of flow matching vision language action policies such as SmolVLA, on a single 12GB consumer GPU. Apache 2.0.">
+<meta name="author" content="Mehmet Turan Yardimci">
+<meta name="keywords" content="SmolVLA, SmolVLA reinforcement learning, VLA RL, VLA RL consumer GPU, vision language action model, vision language action reinforcement learning, flow matching policy, flow matching PPO, flow matching reinforcement learning, online RL fine tuning, reinforcement learning fine tuning, pi_RL, pi_RL SmolVLA, RLinf, LeRobot, LIBERO, LIBERO RL fine tuning, robot learning, robot manipulation, single GPU reinforcement learning, 12GB VRAM, consumer GPU, PPO, policy gradient, action chunk log probability, stochastic sampler, flow SDE, critic head, robot policy fine tuning, PyTorch, WSL2">
+<link rel="canonical" href="https://mturan33.github.io/smolvla_flow_rl/">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="smolvla_flow_rl">
+<meta property="og:title" content="smolvla_flow_rl: online RL fine tuning of flow matching VLA policies">
+<meta property="og:description" content="An open substrate for online reinforcement learning fine tuning of flow matching vision language action policies such as SmolVLA, on a single 12GB consumer GPU.">
+<meta property="og:url" content="https://mturan33.github.io/smolvla_flow_rl/">
+<meta property="og:image" content="https://raw.githubusercontent.com/mturan33/smolvla_flow_rl/main/assets/demo.gif">
+<meta property="og:image:type" content="image/gif">
+<meta property="og:image:width" content="900">
+<meta property="og:image:height" content="506">
+<meta property="og:image:alt" content="Two robot simulator episodes playing side by side, each a manipulation task from the LIBERO Long suite.">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="smolvla_flow_rl: online RL fine tuning of flow matching VLA policies">
+<meta name="twitter:description" content="Online reinforcement learning fine tuning of a flow matching vision language action policy, on a single 12GB consumer GPU.">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/mturan33/smolvla_flow_rl/main/assets/demo.gif">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://mturan33.github.io/smolvla_flow_rl/#software",
+      "name": "smolvla_flow_rl",
+      "alternateName": "SmolVLA flow matching RL substrate",
+      "description": "An engineering substrate for online reinforcement learning fine tuning of a flow matching vision language action policy on a single consumer GPU. It provides a stochastic sampler that yields a tractable action likelihood without modifying the pretrained action head, a policy gradient update that grades the executed action, a process isolated simulator harness with a sparse terminal reward, a deterministic evaluation entry point with a completeness gate, and a written verification protocol.",
+      "codeRepository": "https://github.com/mturan33/smolvla_flow_rl",
+      "url": "https://mturan33.github.io/smolvla_flow_rl/",
+      "image": "https://raw.githubusercontent.com/mturan33/smolvla_flow_rl/main/assets/demo.gif",
+      "author": {
+        "@type": "Person",
+        "name": "Mehmet Turan Yardimci",
+        "url": "https://github.com/mturan33"
+      },
+      "maintainer": {
+        "@type": "Person",
+        "name": "Mehmet Turan Yardimci",
+        "url": "https://github.com/mturan33"
+      },
+      "programmingLanguage": {
+        "@type": "ComputerLanguage",
+        "name": "Python"
+      },
+      "runtimePlatform": "PyTorch",
+      "operatingSystem": "Linux",
+      "applicationCategory": "Robot learning",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "keywords": "SmolVLA, SmolVLA reinforcement learning, vision language action model, VLA RL, VLA RL consumer GPU, flow matching policy, flow matching PPO, online RL fine tuning, reinforcement learning fine tuning, pi_RL, pi_RL SmolVLA, RLinf, LeRobot, LIBERO, LIBERO RL fine tuning, robot learning, robot manipulation, single GPU reinforcement learning, 12GB VRAM, policy gradient, action chunk log probability, stochastic sampler, flow SDE, critic head",
+      "isBasedOn": [
+        {
+          "@type": "SoftwareSourceCode",
+          "name": "RLinf",
+          "codeRepository": "https://github.com/RLinf/RLinf"
+        },
+        {
+          "@type": "SoftwareSourceCode",
+          "name": "LeRobot",
+          "codeRepository": "https://github.com/huggingface/lerobot"
+        }
+      ],
+      "citation": [
+        {
+          "@type": "ScholarlyArticle",
+          "name": "pi_RL: Online RL Fine-tuning for Flow-based Vision-Language-Action Models",
+          "url": "https://arxiv.org/abs/2510.25889"
+        },
+        {
+          "@type": "ScholarlyArticle",
+          "name": "SmolVLA: A Vision-Language-Action Model for Affordable and Efficient Robotics",
+          "url": "https://arxiv.org/abs/2506.01844"
+        },
+        {
+          "@type": "ScholarlyArticle",
+          "name": "LIBERO: Benchmarking Knowledge Transfer for Lifelong Robot Learning",
+          "url": "https://arxiv.org/abs/2306.03310"
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://mturan33.github.io/smolvla_flow_rl/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Can a VLA policy be fine tuned with online RL on a single consumer GPU?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, and this repository is the machinery for doing it. What makes VLA RL on a consumer GPU fit is memory discipline rather than a new algorithm: the simulator runs in separate processes, the update grades only the part of the action chunk the environment executed, and the critic is kept outside the pretrained action head. Everything here was developed and run on one 12GB laptop card."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do you get action log probabilities from a flow matching policy?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A flow matching policy produces an action chunk by integrating a learned velocity field from noise, and integrating it deterministically gives no action likelihood, so a policy gradient has nothing to act on. This repository takes the standard route around that, following the approach of pi_RL: one step of the integration is treated as stochastic, so the sampled chunk has a tractable log probability. The pretrained action head is left bit identical and driven through a callback, and what the update then performs is flow matching PPO, a clipped policy gradient over the action the environment actually executed."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is inside the substrate?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A stochastic sampler for flow matching policies, a policy gradient update over the executed part of the chunk, a critic head with adaptive target rescaling kept outside the action head, a parameter manifest and a learning rate proof printed before the first update, a process isolated simulator harness with a sparse terminal reward, a deterministic evaluation entry point with a completeness gate that refuses to produce a number from an unfinished evaluation, and a written verification protocol whose mechanical subset runs from one gate entry point."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What hardware does it need?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It was developed and tested on a single RTX 5070 Ti laptop GPU with 12GB of VRAM, under WSL2. Anything with 12GB or more should behave the same, and less is untested. It needs Linux with a CUDA card and an EGL capable driver, since EGL is the simulator's headless path."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does this relate to pi_RL, RLinf, LeRobot and SmolVLA?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The training formulation is the one pi_RL introduced for flow based vision language action models. Four files are derivative works of RLinf under the Apache License 2.0, and two of those additionally follow LeRobot's own policy implementation, so they have two upstreams each. SmolVLA is the policy family this drives and nothing here reimplements it, LIBERO is the benchmark the harness drives, and no source file from any of them is redistributed here."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I cite it?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Use the Cite this repository box in the right hand column of the GitHub page. It is generated from CITATION.cff and gives both APA and BibTeX. That file also carries the upstream work, so it points a reader at RLinf, pi_RL, LeRobot, SmolVLA and LIBERO as well."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #fbfbfa;
+  --fg: #1a1a1a;
+  --muted: #5b5b57;
+  --rule: #dcdcd6;
+  --link: #0b5cad;
+  --panel: #f2f2ee;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --fg: #e6e6e3;
+    --muted: #a0a49f;
+    --rule: #2c3038;
+    --link: #86b8ea;
+    --panel: #1b1e24;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 17px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+.wrap { max-width: 45rem; margin: 0 auto; padding: 3rem 1.15rem 4rem; }
+h1 { font-size: 1.85rem; line-height: 1.2; margin: 0 0 .4rem; letter-spacing: .01em; }
+h2 { font-size: 1.16rem; line-height: 1.35; margin: 2.6rem 0 .7rem; }
+p { margin: 0 0 1rem; }
+a { color: var(--link); }
+a:hover { text-decoration: none; }
+.lede { font-size: 1.12rem; color: var(--fg); margin-bottom: .9rem; }
+.meta { color: var(--muted); font-size: .93rem; margin-bottom: 2rem; }
+.meta a { white-space: nowrap; }
+figure { margin: 0 0 1.6rem; }
+figure img {
+  display: block; width: 100%; height: auto; max-width: 100%;
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--panel);
+}
+figcaption { color: var(--muted); font-size: .9rem; margin-top: .6rem; }
+.note {
+  background: var(--panel); border: 1px solid var(--rule); border-radius: 6px;
+  padding: .85rem 1rem; font-size: .95rem; color: var(--muted);
+}
+ul { margin: 0 0 1rem; padding-left: 1.15rem; }
+li { margin-bottom: .45rem; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .89em; background: var(--panel); border: 1px solid var(--rule);
+  border-radius: 4px; padding: .06em .32em;
+}
+footer {
+  margin-top: 3.2rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
+  color: var(--muted); font-size: .9rem;
+}
+@media (max-width: 32rem) {
+  body { font-size: 16px; }
+  .wrap { padding: 2rem 1rem 3rem; }
+  h1 { font-size: 1.6rem; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<main>
+
+<h1>smolvla_flow_rl</h1>
+<p class="lede">Online RL fine tuning of flow matching VLA policies on a single 12GB consumer GPU.</p>
+<p class="meta">
+  <a href="https://github.com/mturan33/smolvla_flow_rl">Repository on GitHub</a> &middot;
+  Apache License 2.0 &middot;
+  by <a href="https://github.com/mturan33">Mehmet Turan Yardimci</a>
+</p>
+
+<figure>
+  <img src="https://raw.githubusercontent.com/mturan33/smolvla_flow_rl/main/assets/demo.gif"
+       width="900" height="506" loading="lazy" decoding="async"
+       alt="Two robot simulator episodes playing side by side, each a manipulation task from the LIBERO Long suite.">
+  <figcaption>
+    Two LIBERO Long episodes from the author's own runs, side by side. It is footage, not a measurement: two
+    episodes, chosen, with no repetition and no statistics behind either panel.
+    <a href="https://www.linkedin.com/posts/mehmetturanyardimci_robotics-reinforcementlearning-vla-ugcPost-7488179589240799232-7Gv6/">Full video</a>.
+  </figcaption>
+</figure>
+
+<p class="note">
+  No results are reported here or in the repository. Every number published so far describes the machinery, what
+  it trains, what it weighs and how long it takes, and none describes how well it works. Measurements made with
+  this substrate will be released with the accompanying paper.
+</p>
+
+<h2>Can a VLA policy be fine tuned with online RL on a single consumer GPU?</h2>
+<p>
+  Yes, and this repository is the machinery for doing it. What makes VLA RL on a consumer GPU fit is memory
+  discipline rather than a new algorithm: the simulator runs in separate processes, the update grades only the
+  part of the action chunk the environment executed, and the critic is kept outside the pretrained action head.
+  SmolVLA reinforcement learning fine tuning is the case it was built for, and everything here was developed and
+  run on one 12GB laptop card.
+</p>
+
+<h2>How do you get action log probabilities from a flow matching policy?</h2>
+<p>
+  A flow matching policy produces an action chunk by integrating a learned velocity field from noise. Integrating
+  it deterministically gives no action likelihood, so a policy gradient has nothing to act on. This repository
+  takes the standard route around that, following the approach of pi_RL: one step of the integration is treated
+  as stochastic, so the sampled chunk has a tractable log probability. The pretrained action head stays bit
+  identical and is driven through a callback, and what the update then performs is flow matching PPO, a clipped
+  policy gradient over the action the environment actually executed.
+</p>
+
+<h2>What is inside the substrate?</h2>
+<p>
+  Seven parts, each of which a run of this kind needs in order to be trustworthy rather than merely runnable.
+</p>
+<ul>
+  <li>A stochastic sampler for flow matching policies that leaves the pretrained action head bit identical,
+      driving it through a callback rather than modifying it.</li>
+  <li>A policy gradient update that grades the action the environment actually executed, over the executed part
+      of the chunk only, with the likelihood ratio and its spread recorded once per update cycle.</li>
+  <li>A critic head with adaptive target rescaling, kept outside the action head.</li>
+  <li>A parameter manifest and a learning rate proof printed before the first update, so what is training and at
+      what rate is a logged fact rather than an assumption.</li>
+  <li>A process isolated simulator harness with a sparse terminal reward and no shaping.</li>
+  <li>A deterministic evaluation entry point that reads several horizons out of one run, with a completeness gate
+      that refuses to produce a number from an unfinished evaluation.</li>
+  <li>A verification protocol whose rules are written down, with the subset that can be checked mechanically
+      wired into a single gate entry point.</li>
+</ul>
+<p>
+  The harness drives LIBERO, so LIBERO RL fine tuning is what it is set up for out of the box, and the pieces
+  above are what a run reports about itself while doing it.
+</p>
+
+<h2>What hardware does it need?</h2>
+<p>
+  It was developed and tested on a single RTX 5070 Ti laptop GPU with 12GB of VRAM, under WSL2. Anything with
+  12GB or more should behave the same, and less is untested. It needs Linux with a CUDA card and an EGL capable
+  driver, since EGL is the simulator's headless path.
+</p>
+
+<h2>How does this relate to pi_RL, RLinf, LeRobot and SmolVLA?</h2>
+<p>
+  The training formulation is the one pi_RL introduced for flow based vision language action models, so this is
+  the pi_RL SmolVLA case wired for one card. Four files are derivative works of RLinf under the Apache License
+  2.0, and two of those additionally follow LeRobot's own policy implementation, so they have two upstreams each.
+  SmolVLA is the policy family this drives and nothing here reimplements it, LIBERO is the benchmark the harness
+  drives, and no source file from any of them is redistributed here. What came from where is recorded in
+  <code>NOTICE</code> and <code>CHANGES_FROM_UPSTREAM.md</code>, and every adapted file carries a notice of
+  modification in its header.
+</p>
+
+<h2>How do I cite it?</h2>
+<p>
+  Use the Cite this repository box in the right hand column of the
+  <a href="https://github.com/mturan33/smolvla_flow_rl">GitHub page</a>. It is generated from
+  <code>CITATION.cff</code> and gives both APA and BibTeX. That file also carries the upstream work, so it points
+  a reader at RLinf, pi_RL, LeRobot, SmolVLA and LIBERO as well.
+</p>
+
+</main>
+<footer>
+  <p>
+    smolvla_flow_rl, by Mehmet Turan Yardimci. Apache License 2.0. The code lives at
+    <a href="https://github.com/mturan33/smolvla_flow_rl">github.com/mturan33/smolvla_flow_rl</a>.
+  </p>
+</footer>
+</div>
+</body>
+</html>

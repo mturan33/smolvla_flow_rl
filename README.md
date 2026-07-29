@@ -10,6 +10,8 @@ Full video: https://www.linkedin.com/posts/mehmetturanyardimci_robotics-reinforc
 Online reinforcement learning fine tuning for a flow matching vision language action policy, on a single
 consumer GPU.
 
+Project page: https://mturan33.github.io/smolvla_flow_rl/
+
 A flow matching policy produces an action chunk by integrating a learned velocity field from noise. Integrating
 it deterministically gives no action likelihood, so there is nothing for a policy gradient to act on. This
 repository takes the standard route around that, following the approach of pi_RL (see `CITATION.cff`): one step
