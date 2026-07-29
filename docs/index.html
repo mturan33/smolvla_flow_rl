@@ -94,6 +94,14 @@
       "mainEntity": [
         {
           "@type": "Question",
+          "name": "Who is this for?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "If you are trying to fine tune SmolVLA with reinforcement learning, run PPO on a flow matching policy, or do VLA RL on limited hardware like a laptop GPU, this substrate is built for exactly that situation. It assumes you already have a pretrained policy and want it to improve from its own experience rather than from more demonstrations. It does not assume a cluster, and it does not assume you will take the training loop on trust: the failures that would otherwise pass silently are the ones it reports on."
+          }
+        },
+        {
+          "@type": "Question",
           "name": "Can a VLA policy be fine tuned with online RL on a single consumer GPU?",
           "acceptedAnswer": {
             "@type": "Answer",
@@ -138,6 +146,22 @@
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "Use the Cite this repository box in the right hand column of the GitHub page. It is generated from CITATION.cff and gives both APA and BibTeX. That file also carries the upstream work, so it points a reader at RLinf, pi_RL, LeRobot, SmolVLA and LIBERO as well."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it work with diffusion policies?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It is built and tested for flow matching policies, and diffusion is not targeted. The likelihood this trains on comes from treating one step of a flow integration as stochastic; a diffusion policy has its own noise schedule and would need its own path to the same thing. Nothing here forbids that adaptation, but none of it has been tried, so treat it as unwritten rather than as supported."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can it run on 8GB?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Untested. 12GB is the configuration everything was developed and run on, and anything at or above that should behave the same. Below it nobody has tried, so the honest answer is that it might fit with a shorter rollout and a smaller batch, or it might not fit at all."
           }
         }
       ]
@@ -240,6 +264,15 @@ footer {
   this substrate will be released with the accompanying paper.
 </p>
 
+<h2>Who is this for?</h2>
+<p>
+  If you are trying to fine tune SmolVLA with reinforcement learning, run PPO on a flow matching policy, or do
+  VLA RL on limited hardware like a laptop GPU, this substrate is built for exactly that situation. It assumes
+  you already have a pretrained policy and want it to improve from its own experience rather than from more
+  demonstrations. It does not assume a cluster, and it does not assume you will take the training loop on trust:
+  the failures that would otherwise pass silently are the ones it reports on.
+</p>
+
 <h2>Can a VLA policy be fine tuned with online RL on a single consumer GPU?</h2>
 <p>
   Yes, and this repository is the machinery for doing it. What makes VLA RL on a consumer GPU fit is memory
@@ -306,6 +339,21 @@ footer {
   <a href="https://github.com/mturan33/smolvla_flow_rl">GitHub page</a>. It is generated from
   <code>CITATION.cff</code> and gives both APA and BibTeX. That file also carries the upstream work, so it points
   a reader at RLinf, pi_RL, LeRobot, SmolVLA and LIBERO as well.
+</p>
+
+<h2>Does it work with diffusion policies?</h2>
+<p>
+  It is built and tested for flow matching policies, and diffusion is not targeted. The likelihood this trains on
+  comes from treating one step of a flow integration as stochastic; a diffusion policy has its own noise schedule
+  and would need its own path to the same thing. Nothing here forbids that adaptation, but none of it has been
+  tried, so treat it as unwritten rather than as supported.
+</p>
+
+<h2>Can it run on 8GB?</h2>
+<p>
+  Untested. 12GB is the configuration everything was developed and run on, and anything at or above that should
+  behave the same. Below it nobody has tried, so the honest answer is that it might fit with a shorter rollout
+  and a smaller batch, or it might not fit at all, and this page is not the place to guess.
 </p>
 
 </main>
