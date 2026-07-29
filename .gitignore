@@ -10,6 +10,7 @@ __pycache__/
 *.onnx
 *.onnx_data
 *.png
+*.mp4
 *.jsonl
 latest.txt
 TRIPWIRE_REASON.txt
