@@ -12,7 +12,11 @@ authors:
   - family-names: "Yardimci"
     given-names: "Mehmet Turan"
 license: Apache-2.0
+# The release date rather than a bare year: CFF 1.2.0 has no year key at the root, and a file carrying one is
+# rejected by the schema. Renderers take the year from here, so APA and BibTeX both read 2026.
+date-released: "2026-07-29"
 repository-code: "https://github.com/mturan33/smolvla_flow_rl"
+url: "https://github.com/mturan33/smolvla_flow_rl"
 keywords:
   - robotics
   - reinforcement learning
