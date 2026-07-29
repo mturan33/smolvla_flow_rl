@@ -5,6 +5,8 @@
 Two LIBERO Long episodes from the author's own runs, side by side. It is footage, not a measurement: two
 episodes, chosen, with no repetition and no statistics behind either panel.
 
+Full video: https://www.linkedin.com/posts/mehmetturanyardimci_robotics-reinforcementlearning-vla-ugcPost-7488179589240799232-7Gv6/
+
 Online reinforcement learning fine tuning for a flow matching vision language action policy, on a single
 consumer GPU.
 
