@@ -114,3 +114,30 @@ licence files whole because that is what those licences ask for. Their content i
 are normalised to LF like every other text file here, which `NOTICE` records for the one where it applied.
 LeRobot is also an upstream of `src/action_model.py`, as recorded above and in `NOTICE`; LIBERO is a dependency
 only.
+
+## 2026-08-20, the expert_full_vlm_lora regime
+
+`src/model_setup.py` gains a fourth regime, `expert_full_vlm_lora`: the action expert at full rank, low rank
+adapters on the language backbone, and the flow action head at full rank, with the vision tower and connector
+frozen. It also gains `open_action_head`, which refuses an empty match rather than opening nothing quietly, and
+`assert_surface`, a gate that runs inside `build_model` so that a new entry point cannot forget it. The manifest
+now prints the trainable total as a percentage of the model beside the absolute figures.
+
+`src/train_flow_rl.py` and `src/eval_cli.py` accept the new regime. `--control_arm` and `--control_reason` are
+added so that a run on a surface without a full rank action expert has to declare itself.
+
+`src/ppo_step.py`: `reference_is_available` no longer counts adapter layers. It now requires that NO trainable
+parameter sits outside an adapter. The previous check would have passed in the new regime, where adapters exist
+on the backbone while the expert and head train in place, and the anchor would then have run against a reference
+that silently contained the trained decoder.
+
+`protocol/VERIFICATION_PROTOCOL.md`: the behavioural parity invariant is narrowed to the `frozen`, `lora` and
+`full` regimes, with the reason stated and the replacement check for the new regime named.
+
+`README.md` gains a design section that explains the choice of surface and cites the literature it rests on. No
+result is reported there or anywhere else in this repository.
+
+`tests/test_invariants.py` gains five paired tests: the surface gate against an adapter only expert and against a
+full rank one, the declared control path against the same model without the declaration, the head opener against
+a naming change, the reference anchor against a policy trained in place and against an adapter only one, and the
+narrowed parity scope itself so that widening it again fails here.

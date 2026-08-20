@@ -80,12 +80,20 @@ def parse_args(argv=None):
 
     # No default. This selects the trainable surface, and a default here would silently give every run that omits
     # the flag one specific configuration that nobody chose.
-    p.add_argument("--regime", required=True, choices=("frozen", "lora", "full"),
-                   help="which part of the policy trains")
+    p.add_argument("--regime", required=True,
+                   choices=("expert_full_vlm_lora", "frozen", "lora", "full"),
+                   help="which part of the policy trains; expert_full_vlm_lora is the recommended default")
+    # A run whose surface is not the recommended one has to SAY so. Without this the only way to tell a
+    # deliberate ablation from a misconfiguration is to ask the person who launched it.
+    p.add_argument("--control_arm", action="store_true",
+                   help="declare this run a control or ablation, so a surface without a full rank action "
+                        "expert is allowed; requires --control_reason")
+    p.add_argument("--control_reason", default="",
+                   help="why this run is a control or ablation; recorded in the log and the checkpoint")
     p.add_argument("--adapter_rank", type=int, default=ADAPTER_RANK_DEFAULT,
-                   help="adapter rank, read only by the frozen and lora regimes")
+                   help="adapter rank, read by the frozen, lora and expert_full_vlm_lora regimes")
     p.add_argument("--adapter_alpha", type=int, default=ADAPTER_ALPHA_DEFAULT,
-                   help="adapter scaling, read only by the frozen and lora regimes")
+                   help="adapter scaling, read by the frozen, lora and expert_full_vlm_lora regimes")
 
     p.add_argument("--updates", type=int, required=True, help="number of collect and update cycles")
     p.add_argument("--rollout_steps", type=int, required=True, help="decisions per environment per cycle")
@@ -218,6 +226,21 @@ def check_trainer_args(args) -> None:
     A check that is right for one entry point and absent from the other is a shared function; a check that only
     one entry point can satisfy is not.
     """
+    # TRAINER ONLY, and it lives here for a reason the suite already knew. check_regime_args is SHARED with the
+    # evaluation command, and `test_every_shared_check_is_satisfiable_by_both_entry_points` exists because a
+    # trainer only check was once folded into that shared validator, after which evaluation raised
+    # AttributeError on every invocation. This check was written into the shared validator first and the same
+    # test caught it again. A declaration with no reason is a checkbox, and a checkbox gets ticked.
+    if args.control_arm and not args.control_reason.strip():
+        raise SystemExit(
+            "--control_arm was given without --control_reason. Declaring a run a control or an ablation is "
+            "what allows a surface whose action expert does not train at full rank, so the declaration has to "
+            "carry the reason it is legitimate. The reason is recorded with the run.")
+    if args.control_reason.strip() and not args.control_arm:
+        raise SystemExit(
+            "--control_reason was given without --control_arm, so the reason would be recorded for a run that "
+            "is not declared a control and the gate would still refuse the surface. Pass both or neither.")
+
     # A scale of zero makes the sampler deterministic, so the likelihood is a constant, the ratio is one and the
     # surrogate carries no gradient. A clip of zero scales every gradient to nothing while the number logged as
     # evidence is the norm from before the clip, so the log cannot show it. Both leave the critic training and
@@ -416,7 +439,8 @@ def main(argv=None):
         value_head_popart=args.popart,
     )
     model = build_model(SmolVLAForRLActionPrediction, cfg, device, args.regime,
-                        args.adapter_rank, args.adapter_alpha)
+                        args.adapter_rank, args.adapter_alpha,
+                        control_arm=args.control_arm, control_reason=args.control_reason)
     optimizer = build_optimizer(model, args.actor_lr, args.critic_lr)
 
     # The executed chunk cannot be longer than the chunk the policy emits, which the wrapper reads off the policy
@@ -433,9 +457,12 @@ def main(argv=None):
     # switching adapters off, so it needs adapters to exist.
     if args.kl_coef != 0.0 and not reference_is_available(model):
         raise SystemExit(
-            "--kl_coef %g was given, but regime %r trains the policy in place and leaves no adapters to switch "
-            "off, so there is no pretrained policy left to anchor to. Use --regime frozen or lora, or set "
-            "--kl_coef 0." % (args.kl_coef, args.regime))
+            "--kl_coef %g was given, but regime %r trains part of the policy IN PLACE, so switching the "
+            "adapters off does not recover the pretrained policy: the in place changes stay behind and the "
+            "anchor would pull toward the current policy wearing a disguise, logging a penalty that means "
+            "nothing. This repository REFUSES that rather than holding a second full copy of the weights, "
+            "which would roughly double the memory the regime was chosen to fit inside. Use --regime frozen "
+            "or lora, or set --kl_coef 0." % (args.kl_coef, args.regime))
 
     # What the checkpoints will record about the run that produced them. The evaluation command takes the same
     # arguments and cannot tell from the weights alone which ones were used, so scoring a checkpoint under a

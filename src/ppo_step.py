@@ -68,11 +68,22 @@ def _recompute_current(model, env_obs, chains, denoise_inds, noise_level):
 def reference_is_available(model) -> bool:
     """Whether disabling adapters actually recovers the pretrained policy.
 
-    It does only when every trained parameter lives in an adapter. If the policy itself was opened at full rank
-    the pretrained weights have been overwritten in place, and there is nothing left in the model to compare
-    against.
+    It does only when EVERY trained parameter lives in an adapter. If any part of the policy itself was opened
+    at full rank, its pretrained weights have been overwritten in place, and disabling the adapters leaves
+    those changes behind: what comes back is the current policy with its adapters off, not the pretrained one.
+
+    Counting adapters is therefore not enough, and this used to count them and stop. A regime that carries
+    adapters on the language backbone WHILE training the action expert and the action head at full rank passes
+    an adapter count and fails the actual requirement, so the anchor would have run against a reference that
+    silently included the trained decoder. The condition is now read from the property itself: no trainable
+    parameter outside an adapter.
     """
-    return count_adapter_layers(model.flow_model) > 0
+    if count_adapter_layers(model.flow_model) == 0:
+        return False
+    for name, p in model.flow_model.named_parameters():
+        if p.requires_grad and "lora" not in name.lower():
+            return False
+    return True
 
 
 def _recompute_reference(model, env_obs, chains, denoise_inds, noise_level):

@@ -653,6 +653,241 @@ def test_checkpoint_tolerates_missing_random_state():
         return check("checkpoint without random state still loads", step == 7)
 
 
+# ---------------------------------------------------------------------------------------------------------
+# Surface gate, the head opener, and the reference anchor's precondition.
+#
+# Added with the expert_full_vlm_lora regime. Each of these is given the defect it exists to catch and is
+# required to fail on it, and each one is paired with the case that must still pass, so a gate that has been
+# made unreachable fails here rather than in a run.
+# ---------------------------------------------------------------------------------------------------------
+
+class _ToyFlow(torch.nn.Module):
+    """A stand in built from REAL modules with the real parameter names, and a REAL adapter where one is asked
+    for.
+
+    The first version of this fixture used bare parameters whose names merely contained "lora". It passed the
+    negative test and failed the positive one, which is what a paired test is for: `count_adapter_layers`
+    counts peft LoraLayer INSTANCES, not names, so nothing in that fixture was an adapter and the anchor was
+    reported unavailable in every case. A fixture that cannot be adapted cannot test a check about adapters.
+    """
+
+    def __init__(self, expert="full", head=False, head_names=True, adapters=True):
+        super().__init__()
+        self.vlm_with_expert = torch.nn.Module()
+        self.vlm_with_expert.lm_expert = torch.nn.Module()
+        self.vlm_with_expert.lm_expert.q_proj = torch.nn.Linear(4, 4)
+        self.vlm_with_expert.vlm = torch.nn.Module()
+        self.vlm_with_expert.vlm.model = torch.nn.Module()
+        self.vlm_with_expert.vlm.model.text_model = torch.nn.Module()
+        self.vlm_with_expert.vlm.model.text_model.q_proj = torch.nn.Linear(4, 4)
+        setattr(self, "action_out_proj" if head_names else "decoder_out", torch.nn.Linear(4, 4))
+
+        for prm in self.parameters():
+            prm.requires_grad = False
+
+        if expert == "full":
+            for prm in self.vlm_with_expert.lm_expert.parameters():
+                prm.requires_grad = True
+        elif expert == "lora":
+            from peft import LoraConfig, inject_adapter_in_model
+            inject_adapter_in_model(
+                LoraConfig(r=2, lora_alpha=4, target_modules=["q_proj"], lora_dropout=0.0, bias="none"),
+                self.vlm_with_expert.lm_expert)
+
+        if adapters:
+            from peft import LoraConfig, inject_adapter_in_model
+            inject_adapter_in_model(
+                LoraConfig(r=2, lora_alpha=4, target_modules=["q_proj"], lora_dropout=0.0, bias="none"),
+                self.vlm_with_expert.vlm.model.text_model)
+
+        if head:
+            for prm in getattr(self, "action_out_proj" if head_names else "decoder_out").parameters():
+                prm.requires_grad = True
+
+
+class _WithFlow(torch.nn.Module):
+    """assert_surface reads model.named_parameters; reference_is_available reads model.flow_model."""
+
+    def __init__(self, toy):
+        super().__init__()
+        self.flow_model = toy
+
+    def named_parameters(self, *a, **k):
+        return self.flow_model.named_parameters(*a, **k)
+
+
+def test_surface_gate_refuses_an_adapter_only_expert():
+    from model_setup import assert_surface
+    ok = True
+
+    # DEFECT: the expert carries an adapter and its own weights are frozen. This is the configuration the gate
+    # exists for, because a parameter count alone does not distinguish it from a trained expert.
+    try:
+        assert_surface(_WithFlow(_ToyFlow(expert="lora")), "lora")
+        ok = check("surface gate refuses an adapter only expert", False, "it did not raise")
+    except RuntimeError:
+        ok = check("surface gate refuses an adapter only expert", True) and ok
+
+    # PAIR: the same gate must accept the surface it is there to require.
+    try:
+        assert_surface(_WithFlow(_ToyFlow(expert="full")), "expert_full_vlm_lora")
+        ok = check("surface gate accepts a full rank expert", True) and ok
+    except RuntimeError as exc:
+        ok = check("surface gate accepts a full rank expert", False, str(exc))
+
+    # PAIR: a frozen expert must fail for the same reason, not pass by a different route.
+    try:
+        assert_surface(_WithFlow(_ToyFlow(expert="frozen")), "frozen")
+        ok = check("surface gate refuses a frozen expert", False, "it did not raise")
+    except RuntimeError:
+        ok = check("surface gate refuses a frozen expert", True) and ok
+    return ok
+
+
+def test_surface_gate_lets_a_declared_control_through():
+    from model_setup import assert_surface
+    ok = True
+    model = _WithFlow(_ToyFlow(expert="frozen"))
+
+    # A declared control returns False rather than raising, so the caller can record the label.
+    returned = assert_surface(model, "frozen", control_arm=True, control_reason="ablation named in a prereg")
+    ok = check("declared control passes and reports itself", returned is False) and ok
+
+    # PAIR: without the declaration the identical model must still be refused. If this stopped raising, the
+    # declaration would have become decoration.
+    try:
+        assert_surface(model, "frozen")
+        ok = check("the same model without the declaration is refused", False, "it did not raise")
+    except RuntimeError:
+        ok = check("the same model without the declaration is refused", True) and ok
+    return ok
+
+
+def test_open_action_head_refuses_an_empty_match():
+    from model_setup import open_action_head
+    ok = True
+
+    # DEFECT: the head parameters do not carry the expected names, so the opener matches nothing. Silently
+    # opening zero parameters would leave the regime running with a frozen head while claiming an open one.
+    try:
+        open_action_head(_ToyFlow(expert="full", head=False, head_names=False))
+        ok = check("head opener refuses an empty match", False, "it did not raise")
+    except RuntimeError:
+        ok = check("head opener refuses an empty match", True) and ok
+
+    # PAIR: with the real names it must actually open something.
+    toy = _ToyFlow(expert="full", head=False)
+    open_action_head(toy)
+    opened = sum(1 for n, p in toy.named_parameters()
+                 if p.requires_grad and "action_out_proj" in n)
+    ok = check("head opener opens the head when names match", opened > 0, "opened=%d" % opened) and ok
+    return ok
+
+
+def test_reference_anchor_refuses_a_policy_trained_in_place():
+    from ppo_step import reference_is_available
+    ok = True
+
+    # DEFECT, and the reason this check was changed: adapters ARE present, so an adapter count says the
+    # reference is available, while the expert and the head were opened in place. Disabling the adapters then
+    # returns the trained policy rather than the pretrained one, and the anchor would pull toward the current
+    # policy while logging a penalty that means nothing.
+    in_place = _WithFlow(_ToyFlow(expert="full", head=True, adapters=True))
+    ok = check("anchor refuses when anything trains in place",
+               reference_is_available(in_place) is False) and ok
+
+    # PAIR: when every trainable parameter is an adapter, the in place reference is genuinely available and
+    # must still be reported as such, or the anchor becomes unreachable in the regimes that support it.
+    adapters_only = _WithFlow(_ToyFlow(expert="lora", head=False, adapters=True))
+    ok = check("anchor available when only adapters train",
+               reference_is_available(adapters_only) is True) and ok
+
+    # PAIR: no adapters at all, nothing to disable.
+    none = _WithFlow(_ToyFlow(expert="full", adapters=False))
+    ok = check("anchor unavailable with no adapters", reference_is_available(none) is False) and ok
+    return ok
+
+
+def test_parity_invariant_scope_is_the_narrow_one():
+    """The narrowed invariant, written as a test so that widening it again fails here.
+
+    The action head group must read zero in frozen, lora and full, and NONZERO in expert_full_vlm_lora. The
+    second half is the part that is easy to lose: it inverts what a zero means, and a reader who remembers the
+    old rule would call the nonzero reading the fault.
+    """
+    from model_setup import HEAD_FROZEN_REGIMES, REGIMES
+    ok = True
+    ok = check("expert_full_vlm_lora is a regime", "expert_full_vlm_lora" in REGIMES) and ok
+    ok = check("the head frozen scope excludes the new regime",
+               "expert_full_vlm_lora" not in HEAD_FROZEN_REGIMES) and ok
+    ok = check("the head frozen scope is exactly the other three",
+               set(HEAD_FROZEN_REGIMES) == {"frozen", "lora", "full"}) and ok
+
+    # And the surfaces must actually differ in the way the scope claims.
+    head_open = _ToyFlow(expert="full", head=True)
+    head_shut = _ToyFlow(expert="full", head=False)
+    n_open = sum(p.numel() for n, p in head_open.named_parameters()
+                 if p.requires_grad and "action_out_proj" in n)
+    n_shut = sum(p.numel() for n, p in head_shut.named_parameters()
+                 if p.requires_grad and "action_out_proj" in n)
+    ok = check("head group is nonzero when the head is open", n_open > 0, "n=%d" % n_open) and ok
+    ok = check("head group is zero when the head is shut", n_shut == 0, "n=%d" % n_shut) and ok
+    return ok
+
+
+def test_control_declaration_and_its_reason_are_refused_apart():
+    """Both directions, because a one sided check leaves the other half as decoration.
+
+    Found by auditing this change rather than by a run: the help text said --control_arm requires
+    --control_reason and nothing enforced it. A declaration that costs nothing to make is a declaration that
+    stops meaning anything.
+
+    The namespace comes from the REAL parser rather than from a hand built stand in, for the reason the
+    shared check test already gives: a hand built one satisfies whichever fields the new check reads and
+    raises AttributeError on the rest, which aborts the suite instead of failing a line. Two rounds of that
+    happened while writing this. Asking the parser makes the fixture correct by construction.
+    """
+    import train_flow_rl
+    ok = True
+
+    base = ["--tasks", "libero_10:0", "--base_policy", "/nonexistent", "--output_dir", "/tmp",
+            "--noise_level", "0.1", "--actor_lr", "1e-5", "--critic_lr", "1e-4",
+            "--gamma", "0.99", "--gae_lambda", "0.95", "--regime", "frozen",
+            "--updates", "1", "--rollout_steps", "8", "--episode_length", "100",
+            "--denoise_steps", "4", "--seed", "0"]
+
+    a = train_flow_rl.parse_args(base + ["--control_arm"])
+    try:
+        train_flow_rl.check_trainer_args(a)
+        ok = check("control arm without a reason is refused", False, "it did not raise")
+    except SystemExit:
+        ok = check("control arm without a reason is refused", True) and ok
+
+    a = train_flow_rl.parse_args(base + ["--control_reason", "a reason with no declaration"])
+    try:
+        train_flow_rl.check_trainer_args(a)
+        ok = check("a reason without the declaration is refused", False, "it did not raise")
+    except SystemExit:
+        ok = check("a reason without the declaration is refused", True) and ok
+
+    # PAIR: both together must be accepted, or the flag pair would be unusable.
+    a = train_flow_rl.parse_args(base + ["--control_arm", "--control_reason", "ablation named in a prereg"])
+    try:
+        train_flow_rl.check_trainer_args(a)
+        ok = check("declaration with a reason is accepted", True) and ok
+    except SystemExit as exc:
+        ok = check("declaration with a reason is accepted", False, str(exc))
+
+    # PAIR: neither given must also be accepted, which is the ordinary case.
+    a = train_flow_rl.parse_args(base)
+    try:
+        train_flow_rl.check_trainer_args(a)
+        ok = check("neither given is accepted", True) and ok
+    except SystemExit as exc:
+        ok = check("neither given is accepted", False, str(exc))
+    return ok
+
+
 def main():
     print("invariants and gate negative tests")
     print("-" * 62)
@@ -677,6 +912,12 @@ def main():
     ok &= test_checkpoint_restores_random_state()
     ok &= test_checkpoint_round_trip_on_the_real_device()
     ok &= test_checkpoint_tolerates_missing_random_state()
+    ok &= test_surface_gate_refuses_an_adapter_only_expert()
+    ok &= test_surface_gate_lets_a_declared_control_through()
+    ok &= test_open_action_head_refuses_an_empty_match()
+    ok &= test_reference_anchor_refuses_a_policy_trained_in_place()
+    ok &= test_parity_invariant_scope_is_the_narrow_one()
+    ok &= test_control_declaration_and_its_reason_are_refused_apart()
     print()
     print("INVARIANTS_%s" % ("PASS" if ok else "FAIL"))
     return 0 if ok else 1

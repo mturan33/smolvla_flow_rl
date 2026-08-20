@@ -66,7 +66,8 @@ def parse_args(argv=None):
     p.add_argument("--action_steps", type=int, default=1,
                    help="actions executed from one plan, must match how the run was trained")
 
-    p.add_argument("--regime", required=True, choices=("frozen", "lora", "full"),
+    p.add_argument("--regime", required=True,
+                   choices=("expert_full_vlm_lora", "frozen", "lora", "full"),
                    help="the regime the checkpoint was trained under, since it sets the state dictionary shape")
     # The same defaults the trainer uses, taken from it rather than respelled, so the two entry points cannot
     # drift apart and leave a checkpoint that loads under one and not the other.
@@ -195,7 +196,8 @@ def main(argv=None):
         value_head_popart=args.popart,
     )
     model = build_model(SmolVLAForRLActionPrediction, cfg, device, args.regime,
-                        args.adapter_rank, args.adapter_alpha)
+                        args.adapter_rank, args.adapter_alpha,
+                        enforce_surface=False)
 
     step, changed, produced_under = load_policy_only(args.checkpoint, model)
     print("  [checkpoint] %s at step %d, %d tensors changed on load"

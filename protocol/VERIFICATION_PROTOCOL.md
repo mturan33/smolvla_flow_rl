@@ -47,12 +47,23 @@ discrepancy rather than by the advantage.
 the preprocessing must not modify what it was given. A recording or logging path that mutates the observation it
 inspects perturbs the very rollout it is recording.
 
-**Behavioural parity with the pretrained policy.** [manual] Before any parameter has moved, a deterministic rollout through
-this wrapper must produce the action the pretrained policy produces from the same observation, to within the
-arithmetic. The wrapper drives the pretrained head through a callback and never edits it, so a difference here is
-a difference the wrapper introduced, and any later statement about what training changed would be measuring the
-wrapper instead. Perform it by scoring one observation through both paths at equal noise and comparing the
-executed action; it is left manual because it needs the real weights and a device rather than a fixture.
+**Behavioural parity with the pretrained policy.** [manual] **Applies to the `frozen`, `lora` and `full` regimes
+only.** Before any parameter has moved, a deterministic rollout through this wrapper must produce the action the
+pretrained policy produces from the same observation, to within the arithmetic. In those three regimes the wrapper
+drives the pretrained head through a callback and never edits it, so a difference here is a difference the wrapper
+introduced, and any later statement about what training changed would be measuring the wrapper instead. Perform it
+by scoring one observation through both paths at equal noise and comparing the executed action; it is left manual
+because it needs the real weights and a device rather than a fixture.
+
+**Scope, and why it is narrow.** The check rests on the action head being untouched, which is true in those three
+regimes and deliberately false in `expert_full_vlm_lora`, where the head trains at full rank. A regime that
+changes the action path cannot be asked to reproduce the pretrained action; requiring it would either fail
+correctly and be waived every time, which teaches the reader to ignore a red line, or be quietly reinterpreted
+until it passed. The corresponding check for `expert_full_vlm_lora` is the manifest and the surface gate: the
+action head group must read NONZERO, and the action expert's trainable fraction must be at least 0.99. A zero
+head group there is the fault, exactly inverting what a zero means in the other three. Both statements live in
+`src/model_setup.py` as well, because an invariant whose scope is recorded in one file is an invariant that
+quietly widens.
 
 **Cross process reproducibility.** [manual] The same checkpoint under the same seed must produce the same evaluation in an
 independent process. A number that cannot be reproduced in a second process cannot be checked by anyone else. It

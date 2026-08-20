@@ -44,6 +44,80 @@ will be released with the accompanying paper.
 This is the engineering substrate. It stands on its own as a starting point for anyone doing reinforcement
 learning fine tuning of a flow matching policy on limited hardware.
 
+## Design: which part of the policy should train
+
+A vision language action policy has two things that a fine tuning run can change: the representation that reads
+the instruction and the scene, and the decoder that turns that representation into an action. This repository
+offers four trainable surfaces, and the choice among them is the single argument most likely to decide whether a
+run does anything at all.
+
+The recommended default is **`expert_full_vlm_lora`**: the action expert trains at full rank, low rank adapters on
+the language backbone train alongside it, and the flow action head trains at full rank. The vision tower and the
+connector stay frozen.
+
+The reasoning is that the other three each leave out one of the two things that have to move.
+
+* `frozen` adapts the language side and leaves the action decoder exactly as it was. Whatever the representation
+  learns has to be expressed through a decoder that cannot change how it expresses anything.
+* `lora` opens the decoder through adapters and leaves the backbone bare. The decoder can shift, but only by as
+  much as a low rank correction allows, and the representation feeding it never adapts to the new objective.
+* `full` opens the decoder at full rank and still leaves the backbone bare, so a changed instruction has no path
+  to a changed representation.
+
+Adapting the language side with low rank adapters while training the action decoder at full rank is the
+combination that the recent fine tuning literature reports as the one that works, and the same references also
+report that leaving the action head untouched is a common way to spend a training run without moving the policy:
+
+* Kim et al., *Fine-Tuning Vision-Language-Action Models: Optimizing Speed and Success* (OpenVLA OFT), 2025.
+* *RoboMME*, a multimodal robot manipulation evaluation suite, 2026.
+* arXiv:2607.10172.
+* *VLAFlow*, arXiv:2607.01586.
+
+Two things this section is not. It is not a report of a measurement made here: **this repository publishes no
+results**, and the recommendation above is a statement about published practice and about which surfaces are
+structurally capable of changing what. And it is not a claim that the other three regimes are useless. They are
+kept precisely because a comparison needs controls: `full` is the adapter free control, `lora` is the adapter only
+decoder, and `frozen` is the decoder untouched control. A run in any of them has to say so, with
+`--control_arm` and a reason, and the reason is recorded.
+
+### What the gate enforces, and what it does not
+
+Before the first update, `build_model` prints the manifest and then refuses to continue unless the action
+expert's own parameters are at least 99 percent trainable, or the run declared itself a control. The fraction is
+computed rather than compared against a fixed parameter count, so it survives a change of model size, of layer
+count or of naming.
+
+The check deliberately asks whether the expert's **own body** trains, not whether the expert appears anywhere in
+the trainable set. An adapter attached to the expert satisfies the second and not the first, and the difference
+between those two is invisible in a casually read parameter total.
+
+### The action head, and the narrowed parity invariant
+
+In `frozen`, `lora` and `full` the pretrained action head does not train, and the protocol's behavioural parity
+check rests on that: before any parameter has moved, the wrapper must reproduce the pretrained action. The
+manifest's action head group reads zero in those three, and a nonzero reading is the fault.
+
+In `expert_full_vlm_lora` the head trains at full rank, so the same reading inverts: **nonzero is correct there
+and a zero is the fault.** Parity with the pretrained policy is a statement about a surface that leaves the action
+path alone, and this regime does not. Asking it of a regime that deliberately changes the head would produce a red
+line that is waived on every run, which teaches a reader to ignore red lines. The scope of the invariant is
+therefore written into `protocol/VERIFICATION_PROTOCOL.md`, into `src/model_setup.py`, and into an executable test
+that fails if the scope is widened again.
+
+### The reference anchor is refused in this regime, on purpose
+
+The KL anchor recovers the pretrained policy by switching the adapters off in place, which avoids holding a second
+copy of the weights. That trick is only valid when **every** trainable parameter lives in an adapter. In
+`expert_full_vlm_lora` the expert and the head are trained in place, so switching the adapters off returns the
+trained policy with its adapters disabled, not the pretrained one; the anchor would pull toward the current policy
+and log a penalty that means nothing.
+
+The entry point therefore refuses `--kl_coef` other than zero in this regime and says why. The alternative, a full
+second copy of the weights held for the reference, would roughly double the memory that this regime was chosen to
+fit inside, so it is not offered. This is a documented refusal rather than a silent fallback, which is the whole
+distinction: the check that used to guard this counted adapter layers and would have passed here, since adapters
+are present, while the requirement it was meant to enforce was not met.
+
 ## Why some of this looks paranoid
 
 Several parts of this repository exist because the corresponding mistake was made and cost real time. They are
