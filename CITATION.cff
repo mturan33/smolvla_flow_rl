@@ -200,3 +200,27 @@ references:
       The benchmark this harness drives, and the source of the scenes and objects in the footage at the top of the
       README. Included because the project asks to be cited in its own README, which is a request rather than a
       licence obligation, and the licence obligation is met separately in NOTICE.
+
+  - type: article
+    title: "ReinFlow: Fine-tuning Flow Matching Policy with Online Reinforcement Learning"
+    year: 2025
+    authors:
+      - family-names: "Zhang"
+        given-names: "Tonghe"
+      - family-names: "Yu"
+        given-names: "Chao"
+      - family-names: "Su"
+        given-names: "Sichang"
+      - family-names: "Wang"
+        given-names: "Yu"
+    identifiers:
+      - type: other
+        value: "arXiv:2505.22094"
+    url: "https://arxiv.org/abs/2505.22094"
+    notes: >-
+      Published at the Thirty-Ninth Conference on Neural Information Processing Systems, 2025. Cited as prior
+      work on the question this substrate is built around: how to obtain a tractable likelihood from a flow
+      matching policy so that a policy gradient has something to act on. ReinFlow's answer is a learnable
+      noise network injected into the deterministic path; the sampler in this repository takes the simpler
+      route of a single stochastic integration step. No comparison between the two is claimed here, and none
+      is reported in this repository.

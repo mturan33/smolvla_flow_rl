@@ -151,7 +151,11 @@ else. The contact test answers whether the setup can learn at all, which is wort
 anything into what a run produces.
 
 ```
-pip install -r requirements.txt
+conda env create -f environment.yml
+conda activate smolvla-flow-rl
+
+# or, into an environment you already have:
+# pip install -r requirements.txt
 python -c "import libero.libero"          # answer the prompt once, see below
 python scripts/download_base_policy.py --out /path/to/base
 bash examples/single_task_contact.sh /path/to/base
@@ -205,6 +209,54 @@ That entry point runs three: a syntax and artefact check over the tree, an impor
 entry point reaches a module this repository does not contain, and the invariant tests. The protocol contains
 further rules that are stated but not automated here; each is marked in the document with how far it is taken.
 See `protocol/VERIFICATION_PROTOCOL.md` for what each rule is and why it exists.
+
+## What the update of 30 August 2026 added
+
+These are the parts that decide whether a number produced by this substrate can be trusted. None of them is
+an experiment and none reports a result.
+
+- **Reference operators in one file** (`src/reference_ops.py`): the policy loss with a dual clip at 3.0, the
+  value loss with a trust region of 0.2 and a Huber delta of 10.0, and truncation compensation on the reward
+  side. Each cites the reference file and configuration key it follows. They live in one module because two
+  PPO paths that each write their own clip drift apart, and a drift between two runs you intend to compare is
+  not a bug in one of them, it is a confound in the comparison.
+- **Gradient accumulation** (`src/ppo_step.py`): the optimiser steps once per global batch rather than once
+  per micro batch. The failure this prevents is silent. A loop that calls `zero_grad` and `step` on every
+  micro batch trains at the micro batch size while every banner and log line reports the pooled figure;
+  nothing errors and the curves look ordinary. `accum_total=1` reproduces the old behaviour exactly.
+- **Seeded resets** (`src/seeding.py`): a per-outer, per-environment stream from `SeedSequence`. Without it a
+  second unseeded reset at the top of the outer loop makes two same-seed runs diverge at the first rollout
+  step, on the observation side, before the sampler is called once.
+- **The single horizon gate** (`src/horizon_gate.py`): training, in-training evaluation and the final
+  canonical evaluation must read one horizon field, or the run does not start. A series measured at two
+  horizons is not a series.
+- **The run configuration gate** (`src/run_config.py`, `scripts/diff_run_config.py`): every run writes what
+  it was, with claimed arithmetic and measured arithmetic in separate blocks, and the diff tool names which
+  fields make two runs incomparable. Module constants and environment flags are recorded too, because the
+  field that turns out to matter is usually the one that is not an argparse argument.
+- **Shape-based completeness for evaluation scans** (`scripts/canon_scan.sh`): an interrupted scan relaunched
+  into an appending file holds two scans, and any completeness check that counts lines will call that file
+  complete. Completeness is the shape of the scan, not the number of lines in it.
+
+## Limitations
+
+Stated because a substrate that only advertises its gates is advertising.
+
+- **No results.** Nothing here reports how well any of this works. The gates say a number would be
+  trustworthy; they say nothing about what the number is. A paper is in preparation.
+- **One benchmark, one policy family.** Everything is exercised on LIBERO with a SmolVLA-family policy. None
+  of it has been run against another simulator or another flow matching policy, so portability is untested
+  rather than claimed.
+- **The likelihood is from one stochastic step.** That is the simple route to a tractable log probability and
+  it is not the only one; a learned noise network is the alternative in the literature. No comparison between
+  those choices is made here.
+- **The gates are shape checks, not correctness proofs.** A run that passes every gate in this repository can
+  still be wrong. What the gates remove is a specific family of silent failures in which the run is not the
+  run its own configuration describes.
+- **Single consumer GPU scale.** Everything is sized for one card. Nothing here has been exercised at
+  multi-node scale and the accumulation path in particular has only been run single process.
+- **bf16 is required** by the training path. Ampere or newer; verify with
+  `python -c "import torch; print(torch.cuda.is_bf16_supported())"` rather than inferring from the model name.
 
 ## Licence and attribution
 
