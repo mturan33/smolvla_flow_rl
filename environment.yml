@@ -41,6 +41,10 @@ dependencies:
       - accelerate==1.13.0
       - safetensors==0.7.0
       - huggingface-hub==0.35.3
+      # transformers raises ImportError from the SmolVLM processor without this. It is an optional extra of
+      # transformers rather than a hard dependency, so a developer machine that once installed something else
+      # already has it and a clean one does not.
+      - num2words==0.5.14
 
       # simulation and benchmark
       - robosuite==1.4.0
