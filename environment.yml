@@ -46,6 +46,16 @@ dependencies:
       - robosuite==1.4.0
       - mujoco==3.7.0
       - bddl==1.0.1
+      # bddl imports `future` but does not declare it, so a from-scratch build fails at import time with
+      # ModuleNotFoundError: No module named 'future'. Found by building this file from scratch rather than
+      # by reading it. h5py is the same class: pulled in transitively on a developer machine, absent on a
+      # clean one.
+      - future==1.0.0
+      - h5py==3.15.1
+      # LIBERO's vectorised env wrapper imports the retired `gym` package, not `gymnasium`. Both end up
+      # installed: gymnasium is what this code uses, gym is what LIBERO needs to import. The deprecation
+      # warnings it prints on every run come from here and are expected.
+      - gym==0.25.2
       - gymnasium==1.3.0
       - easydict==1.9
       - hydra-core==1.2.0

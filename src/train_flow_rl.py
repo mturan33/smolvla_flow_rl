@@ -51,6 +51,9 @@ from ppo_step import ppo_step_stored, reference_is_available  # noqa: E402
 from rollout import collect_rollout  # noqa: E402
 from tripwire import TRIPPED_EXIT_CODE, Tripwire  # noqa: E402
 from evaluate import evaluate  # noqa: E402
+from horizon_gate import check as horizon_check
+from run_config import assert_written, dump_run_config
+from seeding import train_reset_seeds
 
 
 # How far the first update's likelihood ratio may sit from one before the run is stopped. Wide enough to absorb
@@ -137,6 +140,15 @@ def check_horizon_args(args) -> None:
     describes a length no episode ever had. Refused here rather than corrected silently, because raising the cap
     would change the training data as a side effect.
     """
+    # ONE HORIZON. Beyond the inequality below, the two must be EQUAL when both are set: a run whose
+    # in-training evaluation is scored at a different budget than its final evaluation produces a series
+    # measured on two rulers, and nothing in the output says so.
+    # The rule and its message live in horizon_gate, not here. Writing the same check in two places is how
+    # two copies of one rule drift apart, which is the failure the rest of this repository is built against.
+    if args.eval_horizon:
+        ok, msg = horizon_check(args.episode_length, args.eval_horizon, args.episode_length)
+        if not ok:
+            raise SystemExit(msg + " Leave --eval_horizon at 0 to inherit the episode length.")
     if args.eval_horizon and args.eval_horizon > args.episode_length:
         raise SystemExit(
             "--eval_horizon %d exceeds --episode_length %d, and the two share one environment whose episodes are "
@@ -413,6 +425,13 @@ def main(argv=None):
     check_trainer_args(args)
     os.makedirs(args.output_dir, exist_ok=True)
 
+    # The run states what it was BEFORE it produces a number. Written here rather than at the end, because a
+    # run that dies still needs to be identifiable, and a configuration recorded after the fact is a memory.
+    dump_run_config(args, args.output_dir,
+                    derived={"pooled_timesteps_claimed": args.rollout_steps * args.updates},
+                    repo_paths={"repo": os.path.dirname(os.path.dirname(os.path.abspath(__file__)))})
+    assert_written(args.output_dir)
+
     # Seed before anything constructs a module or an environment. Sampling consumes the global streams on every
     # step, so where this line sits determines the stream position the first update sees.
     torch.manual_seed(args.seed)
@@ -602,7 +621,7 @@ def main(argv=None):
                 ve.close()
                 return TRIPPED_EXIT_CODE
             set_initial_states(ve, "train", n_envs, per_task=1, eval_batch=0, n_init_states=n_envs)
-            rolling, _ = ve.reset()
+            rolling, _ = ve.reset(seed=train_reset_seeds(args.seed, cycle + 1, n_envs))
 
         if args.ckpt_every and (cycle + 1) % args.ckpt_every == 0:
             save_checkpoint(args.output_dir, cycle + 1, model, optimizer, extra=provenance)
