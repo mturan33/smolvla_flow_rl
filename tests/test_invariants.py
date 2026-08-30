@@ -750,7 +750,7 @@ def test_surface_gate_lets_a_declared_control_through():
     model = _WithFlow(_ToyFlow(expert="frozen"))
 
     # A declared control returns False rather than raising, so the caller can record the label.
-    returned = assert_surface(model, "frozen", control_arm=True, control_reason="ablation named in a prereg")
+    returned = assert_surface(model, "frozen", control_arm=True, control_reason="a pre-registered control ablation")
     ok = check("declared control passes and reports itself", returned is False) and ok
 
     # PAIR: without the declaration the identical model must still be refused. If this stopped raising, the
@@ -871,7 +871,7 @@ def test_control_declaration_and_its_reason_are_refused_apart():
         ok = check("a reason without the declaration is refused", True) and ok
 
     # PAIR: both together must be accepted, or the flag pair would be unusable.
-    a = train_flow_rl.parse_args(base + ["--control_arm", "--control_reason", "ablation named in a prereg"])
+    a = train_flow_rl.parse_args(base + ["--control_arm", "--control_reason", "a pre-registered control ablation"])
     try:
         train_flow_rl.check_trainer_args(a)
         ok = check("declaration with a reason is accepted", True) and ok

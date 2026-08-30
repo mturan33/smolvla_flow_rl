@@ -39,6 +39,8 @@ reference, which is easy to miss while the gradient is throttled and destructive
 from __future__ import annotations
 
 import torch
+
+from reference_ops import pg_loss_reference, value_loss_reference
 import torch.nn.functional as F
 
 try:
@@ -154,6 +156,10 @@ def ppo_step_stored(
     kl_anchor: bool = False,
     n_action_steps: int = 1,
     popart_beta: float = 1e-3,
+    old_values: torch.Tensor | None = None,
+    accum_index: int = 0,          # micro batch position inside the global batch
+    accum_total: int = 1,          # micro batches per optimizer step; 1 reproduces the old behaviour exactly
+    accum_state: dict | None = None,   # carries "dirty" across micro batches; the caller owns it
 ) -> dict:
     """One update over a stored batch. Returns a metrics dictionary; the caller decides what to log."""
     device = next(model.parameters()).device
@@ -177,17 +183,22 @@ def ppo_step_stored(
 
     log_ratio = new_logp_sum - prev_logp_sum
     ratio = log_ratio.exp()
-    pg_loss = -torch.minimum(ratio * advantages,
-                             torch.clamp(ratio, 1.0 - clip_range, 1.0 + clip_range) * advantages).mean()
+    pg_loss = pg_loss_reference(ratio, advantages, clip_range).mean()
     clip_frac = float(((ratio - 1.0).abs() > clip_range).float().mean().item())
 
     values = new_vals.squeeze(-1) if (new_vals.ndim == 2 and new_vals.shape[-1] == 1) \
         else new_vals.flatten(start_dim=1).mean(dim=-1)
+    # Under adaptive rescaling EVERY term is carried to the normalised scale first, the stored old value
+    # included, or the trust region would be a bound in one unit applied to a quantity in another.
     if rescaling:
         mu, sigma = value_head.pa_mu, value_head.pa_sigma
-        v_loss = 0.5 * F.mse_loss((values.float() - mu) / sigma, (returns.float() - mu) / sigma)
+        v_new = (values.float() - mu) / sigma
+        v_ret = (returns.float() - mu) / sigma
+        v_old = None if old_values is None else (old_values.float().to(v_new.device) - mu) / sigma
     else:
-        v_loss = 0.5 * F.mse_loss(values.float(), returns.float())
+        v_new, v_ret = values.float(), returns.float()
+        v_old = None if old_values is None else old_values.float().to(v_new.device)
+    v_loss = value_loss_reference(v_new, v_old, v_ret).mean()
 
     if kl_anchor:
         ref_logp_full = _recompute_reference(model, env_obs, chains, denoise_inds, noise_level)
@@ -203,8 +214,43 @@ def ppo_step_stored(
     # defect this repository exists to warn about. The recompute does not calculate it either, since computing a
     # quantity in order to discard it is the same defect wearing a different hat.
     loss = pg_loss + value_coef * v_loss + kl_coef * kl_penalty
-    optimizer.zero_grad(set_to_none=True)
-    loss.backward()
+
+    # GRADIENT ACCUMULATION. The global batch is the whole set of micro batches and the optimiser steps once
+    # per global batch, not once per micro batch.
+    #
+    # This is worth stating precisely because the failure mode is silent: a loop that calls zero_grad and
+    # step on every micro batch trains at the MICRO batch size while every banner, manifest and log line
+    # reports the pooled figure. Nothing errors, the curves look ordinary, and the run is simply not the run
+    # the configuration describes. accum_total=1 reproduces the per-micro-batch behaviour exactly, so the
+    # default changes nothing for callers that do not opt in.
+    #
+    # The loss is divided by accum_total so the accumulated gradient is the MEAN over the global batch rather
+    # than its sum, which is what a single large batch would have produced.
+    _first = (accum_index == 0)
+    _last = (accum_index >= accum_total - 1)
+    if accum_state is None:
+        accum_state = {}
+    if _first:
+        optimizer.zero_grad(set_to_none=True)
+        accum_state["dirty"] = False
+    (loss / float(accum_total)).backward()
+    # One non finite micro batch poisons the ACCUMULATED gradient, so it is remembered until the step
+    # boundary rather than judged locally. Judging locally was safe when every micro batch was its own step;
+    # it is not safe once they are pooled.
+    if not bool(torch.isfinite(loss).item()):
+        accum_state["dirty"] = True
+    if not _last:
+        return {
+            "loss": float(loss.detach().float().item()),
+            "pg_loss": float(pg_loss.detach().float().item()),
+            "v_loss": float(v_loss.detach().float().item()),
+            "ratio_mean": float(ratio.detach().float().mean().item()),
+            "clip_frac": clip_frac,
+            "grad_norm": float("nan"),
+            "step_skipped": False,
+            "accumulating": True,
+            "loss_finite": bool(torch.isfinite(loss).item()),
+        }
     trainable = [p for p in model.parameters() if p.requires_grad and p.grad is not None]
     # The clip returns the norm from before it acted, which is the interesting number for reading a run but
     # cannot distinguish a step that was clipped from one that was scaled to nothing. Both are recorded.
@@ -218,7 +264,7 @@ def ppo_step_stored(
     # presents as an unrecoverable run. The batch is dropped and reported instead.
     loss_finite = bool(torch.isfinite(loss).item())
     grad_finite = bool(torch.isfinite(torch.as_tensor(grad_norm)).item())
-    step_skipped = not (loss_finite and grad_finite)
+    step_skipped = not (loss_finite and grad_finite) or bool(accum_state.get("dirty", False))
     if step_skipped:
         optimizer.zero_grad(set_to_none=True)
     else:

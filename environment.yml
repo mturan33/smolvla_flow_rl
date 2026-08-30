@@ -1,0 +1,61 @@
+# Conda environment for this substrate.
+#
+# The versions below are the ones a working tree actually ran, read from the live environment rather than
+# copied from a wish list. `conda env export --from-history` fails on this environment with a
+# CondaValueError, so this file is written from the resolved pip set instead; that is stated here rather
+# than left to be discovered, because an export command that fails silently produces an empty file that
+# still looks like a deliverable.
+#
+#   conda env create -f environment.yml
+#   conda activate smolvla-flow-rl
+#
+# CUDA. torch is pinned to a build compiled against CUDA 12.8. If your driver is older, install the matching
+# torch wheel for your CUDA version instead of this one; nothing else in the list is CUDA sensitive.
+#
+# bf16 is REQUIRED. The training path runs under torch.autocast(bfloat16), so the accelerator must support
+# bf16 natively: Ampere or newer. Turing cards, including the T4, publish FP16, INT8 and INT4 tensor core
+# formats and not bf16. Verify on the machine rather than assuming from the generation name:
+#
+#   python -c "import torch; print(torch.cuda.is_bf16_supported())"
+
+name: smolvla-flow-rl
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.10.20
+  - pip
+  - pip:
+      # core
+      - torch==2.10.0
+      - torchvision==0.25.0
+      - torchcodec==0.10.0
+      - numpy==2.2.6
+      - scipy==1.13.1
+
+      # policy and adapters
+      - transformers==4.54.1
+      - lerobot==0.4.4
+      - peft==0.19.1
+      - accelerate==1.13.0
+      - safetensors==0.7.0
+      - huggingface-hub==0.35.3
+
+      # simulation and benchmark
+      - robosuite==1.4.0
+      - mujoco==3.7.0
+      - bddl==1.0.1
+      - gymnasium==1.3.0
+      - easydict==1.9
+      - hydra-core==1.2.0
+
+      # io and logging
+      - opencv-python-headless==4.12.0.88
+      - imageio==2.37.3
+      - imageio-ffmpeg==0.6.0
+      - matplotlib==3.10.9
+      - wandb==0.24.2
+
+# LIBERO itself is installed separately from its own repository; see the README. It is not on PyPI at the
+# revision this tree expects, and pinning a fork here would hide which revision you actually got.
