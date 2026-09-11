@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import random
+import subprocess
 import sys
 import tempfile
 
@@ -888,6 +889,113 @@ def test_control_declaration_and_its_reason_are_refused_apart():
     return ok
 
 
+_DIFF = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     "scripts", "diff_run_config.py")
+
+
+def _run_diff(a, b, script=None):
+    """Runs the config diff on two files and returns (returncode, combined output)."""
+    p = subprocess.run([sys.executable, script or _DIFF, a, b],
+                       capture_output=True, text=True)
+    return p.returncode, p.stdout + p.stderr
+
+
+def _write(path, payload):
+    with open(path, "w", newline="\n") as fh:
+        json.dump(payload, fh)
+    return path
+
+
+def _known(lr=5e-6, seed=1337):
+    """A config in the schema this tool reads."""
+    return {"args": {"lr": lr, "seed": seed, "tasks": "libero_10:1"},
+            "env_flags": {"ACCUM_OFF": "0"}}
+
+
+def _foreign(arm="R", seed=42, env="humanoid"):
+    """A config from a different schema: none of the blocks this tool reads are present.
+
+    These top-level keys were measured from a real run_config produced by another campaign, not
+    invented, which is why the seeded violation below is a situation that actually occurred.
+    """
+    return {"arm": arm, "arm_info": {}, "cfg": {"seed": seed}, "claimed_arithmetic": {},
+            "env_name": env, "git_commit": "abc", "libs": {}, "seed": seed}
+
+
+def test_config_diff_refuses_a_comparison_of_zero_fields():
+    """Two configs from a foreign schema must be refused, not called identical.
+
+    The defect this catches: every block compared the empty dict against the empty dict, so the
+    difference list stayed empty and the verdict read "no critical field differs ... for the
+    fields checked". Over an empty checked set that sentence is vacuously true and reads as
+    verification. The pair below differs in task, arm and seed and used to be green-lit.
+    """
+    with tempfile.TemporaryDirectory() as d:
+        a = _write(os.path.join(d, "a.json"), _foreign("R", 42, "humanoid"))
+        b = _write(os.path.join(d, "b.json"), _foreign("K", 44, "ant"))
+        rc, out = _run_diff(a, b)
+        return check("config diff refuses zero compared fields",
+                     rc == 2 and "SCHEMA MISMATCH" in out, "rc=%d" % rc)
+
+
+def test_config_diff_refusal_says_what_it_looked_for():
+    """A silent refusal is a refusal nobody can act on.
+
+    The refusal has to name the blocks it expected and the keys the files actually carry, and it
+    has to survive an empty file: the fallback text is built before the formatting, because
+    `"...%s" % joined or "(none)"` binds the `or` to the whole formatted string, which is always
+    truthy, so the fallback never appears and an empty file prints a bare colon.
+    """
+    with tempfile.TemporaryDirectory() as d:
+        a = _write(os.path.join(d, "a.json"), _foreign())
+        b = _write(os.path.join(d, "b.json"), {})
+        rc, out = _run_diff(a, b)
+        ok = (rc == 2 and "expected blocks" in out and "top-level keys" in out
+              and "arm_env_name" not in out and "(none)" in out)
+        return check("refusal names expected blocks and found keys", ok,
+                     "rc=%d" % rc)
+
+
+def test_config_diff_still_sees_real_differences():
+    """The refusal must not swallow the cases the tool exists for.
+
+    Three of them at once: identical known configs pass AND print the denominator; a critical
+    field differing still fails; and a one-sided schema is a real difference rather than a schema
+    refusal, because there the compared-field count is not zero.
+    """
+    with tempfile.TemporaryDirectory() as d:
+        a = _write(os.path.join(d, "a.json"), _known())
+        b = _write(os.path.join(d, "b.json"), _known())
+        c = _write(os.path.join(d, "c.json"), _known(lr=1e-6))
+        f = _write(os.path.join(d, "f.json"), _foreign())
+        rc_same, out_same = _run_diff(a, b)
+        rc_crit, out_crit = _run_diff(a, c)
+        rc_half, _ = _run_diff(a, f)
+        ok = (rc_same == 0 and "compared fields" in out_same
+              and rc_crit == 1 and "CRITICAL" in out_crit
+              and rc_half == 1)
+        return check("real differences still surface",  ok,
+                     "same=%d critical=%d one-sided=%d" % (rc_same, rc_crit, rc_half))
+
+
+def test_config_diff_refusal_is_what_does_the_work():
+    """Disarm the refusal and the same seeded pair passes again.
+
+    Without this the three tests above could be passing for some unrelated reason. A gate is only
+    shown to be load-bearing by removing it and watching the defect come back.
+    """
+    with tempfile.TemporaryDirectory() as d:
+        a = _write(os.path.join(d, "a.json"), _foreign("R", 42, "humanoid"))
+        b = _write(os.path.join(d, "b.json"), _foreign("K", 44, "ant"))
+        src = open(_DIFF, encoding="utf-8").read()
+        assert "    if compared == 0:" in src, "disarm target moved; this test is measuring nothing"
+        disarmed = os.path.join(d, "disarmed.py")
+        with open(disarmed, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(src.replace("    if compared == 0:", "    if False:"))
+        rc, _ = _run_diff(a, b, script=disarmed)
+        return check("disarmed copy passes the same pair", rc == 0, "rc=%d" % rc)
+
+
 def main():
     print("invariants and gate negative tests")
     print("-" * 62)
@@ -918,6 +1026,10 @@ def main():
     ok &= test_reference_anchor_refuses_a_policy_trained_in_place()
     ok &= test_parity_invariant_scope_is_the_narrow_one()
     ok &= test_control_declaration_and_its_reason_are_refused_apart()
+    ok &= test_config_diff_refuses_a_comparison_of_zero_fields()
+    ok &= test_config_diff_refusal_says_what_it_looked_for()
+    ok &= test_config_diff_still_sees_real_differences()
+    ok &= test_config_diff_refusal_is_what_does_the_work()
     print()
     print("INVARIANTS_%s" % ("PASS" if ok else "FAIL"))
     return 0 if ok else 1

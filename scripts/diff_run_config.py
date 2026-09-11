@@ -9,8 +9,8 @@ Any sentence that attributes a difference between two runs to one variable shoul
 Without it the honest language is relational: "these two runs differ by this much", not "X caused this".
 This is the tool that makes that discipline executable rather than aspirational.
 
-Exit codes: 0 identical or only non-critical fields differ, 1 a CRITICAL field differs, 2 usage or read
-error. A critical difference is not an error to suppress; it is the thing worth surfacing before a claim.
+Exit codes: 0 identical or only non-critical fields differ, 1 a CRITICAL field differs, 2 usage,
+read error, or SCHEMA MISMATCH (zero fields compared, which is blindness rather than agreement). A critical difference is not an error to suppress; it is the thing worth surfacing before a claim.
 
 Usage:
     python diff_run_config.py A/run_config.json B/run_config.json
@@ -39,6 +39,12 @@ def load(p):
 
 
 def cmp_block(a, b, name, critical):
+    """Returns (rows, critical_count, compared_field_count).
+
+    THE FIELD COUNT IS RETURNED because a verdict without its denominator is not a measurement.
+    See the schema refusal in main(): a comparison of zero fields used to print "identical on
+    every compared field", which is vacuously true and reads as verification.
+    """
     rows, bad = [], 0
     for k in sorted(set(a) | set(b)):
         va, vb = a.get(k, "<absent>"), b.get(k, "<absent>")
@@ -48,7 +54,7 @@ def cmp_block(a, b, name, critical):
         if k in critical:
             bad += 1
         rows.append("  %-8s %-28s %-28s %s" % (mark, "%s.%s" % (name, k), str(va)[:28], str(vb)[:28]))
-    return rows, bad
+    return rows, bad, len(set(a) | set(b))
 
 
 def main():
@@ -62,15 +68,40 @@ def main():
         print("A missing run_config is not 'no differences'. It means the comparison cannot be made.")
         return 2
 
-    rows, bad = [], 0
-    for blk, crit in (("args", CRITICAL),
-                      ("derived_CLAIMED", set()),
-                      ("measured_OBSERVED", {"optimizer_steps_per_outer", "samples_per_step"}),
-                      ("module_constants", CRITICAL_CONST),
-                      ("env_flags", CRITICAL_ENV)):
-        r, b = cmp_block(A.get(blk, {}), B.get(blk, {}), blk, crit)
+    BLOCKS = ("args", "derived_CLAIMED", "measured_OBSERVED", "module_constants", "env_flags")
+    rows, bad, compared = [], 0, 0
+    for blk, crit in zip(BLOCKS, (CRITICAL, set(),
+                                  {"optimizer_steps_per_outer", "samples_per_step"},
+                                  CRITICAL_CONST, CRITICAL_ENV)):
+        r, b, n = cmp_block(A.get(blk, {}), B.get(blk, {}), blk, crit)
         rows += r
         bad += b
+        compared += n
+
+    # ZERO COMPARED FIELDS IS BLINDNESS, NOT AGREEMENT. This tool reads the blocks named above. A
+    # run_config written against a different schema carries none of them, so every block compared
+    # the empty dict against the empty dict, `rows` stayed empty, and the tool printed "identical
+    # on every compared field" followed by "a single-variable claim is available for the fields
+    # checked". Measured seeded violation: two configs differing in task, arm and seed were
+    # green-lit.
+    #
+    # The qualifier "for the fields checked" is what made it dangerous. Over an empty checked set
+    # that sentence is vacuously TRUE and reads as verification. That is an empty-set failure
+    # sitting inside the one tool whose whole purpose is to refuse unverified comparability. A
+    # tool that cannot see the fields must say it is BLIND rather than say they agree.
+    if compared == 0:
+        print("DIFF %s against %s" % (sys.argv[1], sys.argv[2]))
+        print("  SCHEMA MISMATCH: 0 fields compared. This is NOT a verification.")
+        print("  expected blocks: %s" % ", ".join(BLOCKS))
+        # The parenthesised fallbacks are built BEFORE the formatting, not after it with `or`.
+        # Written as `"...%s" % ", ".join(sorted(A)) or "(none)"` the `or` binds to the whole
+        # formatted string, which is always truthy, so the fallback can never appear and an empty
+        # file prints a bare colon -- the same ambiguity this refusal exists to remove.
+        print("  A top-level keys: %s" % (", ".join(sorted(A)) or "(none)"))
+        print("  B top-level keys: %s" % (", ".join(sorted(B)) or "(none)"))
+        print("A comparison of zero fields agrees on everything and measures nothing. Compare the")
+        print("fields these files actually carry, or write the comparison for this schema.")
+        return 2
 
     print("DIFF %s against %s" % (sys.argv[1], sys.argv[2]))
     if not rows:
@@ -88,7 +119,10 @@ def main():
         print("fixed-sigma value in a run that does not read it; the gate stays strict and the explanation")
         print("belongs in the report, not in a silent exception here.")
         return 1
-    print("VERDICT: no critical field differs. A single-variable claim is available for the fields checked.")
+    print("VERDICT: no critical field differs among %d compared fields. A single-variable claim is"
+          % compared)
+    print("available FOR THOSE FIELDS. The denominator is printed because a verdict without one is")
+    print("not a measurement.")
     return 0
 
 
